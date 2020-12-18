@@ -65,9 +65,4 @@ SIMPLE_BUS_DEVICE_DEFINITION(CacheControl,
                                              KernelSegment2),
                              { return 0x00000000; })
 
-/*
-* Add Address Ranges for these later
-*
-SIMPLE_BUS_DEVICE_DECLARE(CacheControl)
-*/
 ASSUME_NONNULL_END
