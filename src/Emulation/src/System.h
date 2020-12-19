@@ -9,8 +9,8 @@ ASSUME_NONNULL_BEGIN
 void SystemInterrupt(System *sys, InterruptCode code);
 void SystemRun(System *sys);
 
-System *SystemNew(PCFStringRef biosPath, PCFStringRef cdromPath,
-                  PCFStringRef memoryCardPath);
+System *SystemNew(PCFStringRef biosPath, PCFStringRef _Nullable cdromPath,
+                  PCFStringRef _Nullable memoryCardPath);
 
 void *SystemArenaAllocate(System *sys, size_t size);
 
