@@ -11,7 +11,13 @@
       "ctestCommandArgs": "",
       "cmakeToolchain": "",
       "inheritEnvironments": [ "clang_cl_x64_x64" ],
-      "variables": []
+      "variables": [
+        {
+          "name": "CMAKE_C_FLAGS",
+          "value": "-m64 -fdiagnostics-absolute-paths -march=skylake /DWIN32 /D_WINDOWS /W3 /D__AVX__ /D__AVX2__",
+          "type": "STRING"
+        }
+      ]
     },
     {
       "name": "x64-Debug",
@@ -35,7 +41,13 @@
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "clang_cl_x64_x64" ],
-      "variables": []
+      "variables": [
+        {
+          "name": "CMAKE_C_FLAGS",
+          "value": "-m64 -fdiagnostics-absolute-paths  /DWIN32 /D_WINDOWS /W3 /D__AVX__ /D__AVX2__ -march=skylake",
+          "type": "STRING"
+        }
+      ]
     }
   ]
 }

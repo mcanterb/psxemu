@@ -14,6 +14,7 @@ struct __Bios {
 
 static inline BusDevice BiosBusDevice(Bios *bios) {
   BusDevice device = {.context = bios,
+                      .cpuCycles = 12,
                       .read32 = (Read32)BiosRead32,
                       .read16 = (Read16)BiosRead16,
                       .read8 = (Read8)BiosRead8,
@@ -27,14 +28,12 @@ Bios *BiosNew(System *sys, Bus *bus, PCFStringRef biosPath) {
   Bios *bios = (Bios *)SystemArenaAllocate(sys, sizeof(Bios));
   PCFDataRef biosData = PCFDataResultOrPanic(PCFDataNewFromFile(biosPath));
   if (PCFDataCopyInto(biosData, bios->bios, kBiosSize) != kBiosSize) {
-    PCF_PANIC("Bios size is incorrect! Bios is %d bytes. Expected %d",
-              PCFDataCapacity(biosData), kBiosSize);
+    PCF_PANIC("Bios size is incorrect! Bios is %d bytes. Expected %d", PCFDataCapacity(biosData), kBiosSize);
   }
   PCFRelease(biosData);
   bios->sys = sys;
   BusDevice device = BiosBusDevice(bios);
-  PCFResultOrPanic(BusRegisterDevice(
-      bus, &device, NewAddressRange(0x1FC00000, 0x20000000, kMainSegments)));
+  PCFResultOrPanic(BusRegisterDevice(bus, &device, NewAddressRange(0x1FC00000, 0x20000000, kMainSegments)));
   return bios;
 }
 
@@ -53,13 +52,10 @@ uint8_t BiosRead8(Bios *bios, MemorySegment segment, Address address) {
   return bios->bios[addr];
 }
 
-void BiosWrite32(Bios *bios, MemorySegment segment, Address address,
-                 uint32_t data) {}
+void BiosWrite32(Bios *bios, MemorySegment segment, Address address, uint32_t data) {}
 
-void BiosWrite16(Bios *bios, MemorySegment segment, Address address,
-                 uint16_t data) {}
+void BiosWrite16(Bios *bios, MemorySegment segment, Address address, uint16_t data) {}
 
-void BiosWrite8(Bios *bios, MemorySegment segment, Address address,
-                uint8_t data) {}
+void BiosWrite8(Bios *bios, MemorySegment segment, Address address, uint8_t data) {}
 
 ASSUME_NONNULL_END

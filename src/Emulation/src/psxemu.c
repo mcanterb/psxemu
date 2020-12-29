@@ -48,15 +48,19 @@ bool Init(PCFStringRef _Nonnull biosPath) {
     LogSDLError("SDL could not initialize! SDL_Error: %s");
   } else {
     // Create window
-    window = SDL_CreateWindow(kWindowTitle, SDL_WINDOWPOS_UNDEFINED,
-                              SDL_WINDOWPOS_UNDEFINED, kScreenWidth,
+    window = SDL_CreateWindow(kWindowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, kScreenWidth,
                               kScreenHeight, SDL_WINDOW_SHOWN);
     if (window == NULL) {
       LogSDLError("Window could not be created! SDL_Error: %s");
     } else {
-      // Get window surface
-      screenSurface = SDL_GetWindowSurface(window);
       psxSystem = SystemNew(biosPath, NULL, NULL);
+      screenSurface = SDL_GetWindowSurface(window);
+      PCFStringRef pixelName = PCFStringNewFromCString(SDL_GetPixelFormatName(screenSurface->format->format));
+      PCFDEBUG("Pixel format is %s. Num of bytes per pixel is %d. R = 0x%08x, "
+               "G = 0x%08x, B = 0x%08x",
+               pixelName, screenSurface->format->BytesPerPixel, screenSurface->format->Rmask,
+               screenSurface->format->Gmask, screenSurface->format->Bmask);
+      PCFRelease(pixelName);
       return true;
     }
   }
@@ -72,11 +76,11 @@ void Loop() {
         quit = true;
       }
     }
+    screenSurface = SDL_GetWindowSurface(window);
     SystemRun(psxSystem);
-    SDL_FillRect(screenSurface, NULL,
-                 SDL_MapRGB(screenSurface->format, 0x00, 0x00, 0x00));
-
+    SystemUpdateSurface(psxSystem, screenSurface);
     SDL_UpdateWindowSurface(window);
+    SystemSync(psxSystem);
   }
 }
 

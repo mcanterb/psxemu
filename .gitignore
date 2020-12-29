@@ -13,4 +13,5 @@ out
 SCPH1001.BIN
 vcpkg
 .vs
+*.DUMP
 

@@ -8,6 +8,8 @@
 
 ASSUME_NONNULL_BEGIN
 
+#define packed __attribute__((packed))
+
 typedef uint32_t Address;
 
 extern const Address kPhysicalAddressMask;
@@ -16,72 +18,56 @@ extern const Address kPhysicalAddressMask;
 
 #define PHYSICAL(addr) (addr & kPhysicalAddressMask)
 #define SEGMENT(addr) MemorySegmentForAddress(addr)
-#define ADDRESS_UNPACK(addr)                                                   \
-  Address addr##Physical = PHYSICAL(addr);                                     \
+#define ADDRESS_UNPACK(addr)                                                                                           \
+  Address addr##Physical = PHYSICAL(addr);                                                                             \
   MemorySegment addr##Segment = SEGMENT(addr)
 
-#define BUS_DEVICE_FUNCS(type)                                                 \
-  uint32_t type##Read32(type *mem, MemorySegment segment, Address address);    \
-  uint16_t type##Read16(type *mem, MemorySegment segment, Address address);    \
-  uint8_t type##Read8(type *mem, MemorySegment segment, Address address);      \
-  void type##Write32(type *mem, MemorySegment segment, Address address,        \
-                     uint32_t data);                                           \
-  void type##Write16(type *mem, MemorySegment segment, Address address,        \
-                     uint16_t data);                                           \
-  void type##Write8(type *mem, MemorySegment segment, Address address,         \
-                    uint8_t data);
-#define SIMPLE_BUS_DEVICE_DECLARE(type)                                        \
-  void type##New(System *sys, Bus *bus);                                       \
-  uint32_t type##Read32(void *_Nullable device, MemorySegment segment,         \
-                        Address address);                                      \
-  uint16_t type##Read16(void *_Nullable device, MemorySegment segment,         \
-                        Address address);                                      \
-  uint8_t type##Read8(void *_Nullable device, MemorySegment segment,           \
-                      Address address);                                        \
-  void type##Write32(void *_Nullable device, MemorySegment segment,            \
-                     Address address, uint32_t data);                          \
-  void type##Write16(void *_Nullable device, MemorySegment segment,            \
-                     Address address, uint16_t data);                          \
-  void type##Write8(void *_Nullable device, MemorySegment segment,             \
-                    Address address, uint8_t data);
+#define BUS_DEVICE_FUNCS(type)                                                                                         \
+  uint32_t type##Read32(type *mem, MemorySegment segment, Address address);                                            \
+  uint16_t type##Read16(type *mem, MemorySegment segment, Address address);                                            \
+  uint8_t type##Read8(type *mem, MemorySegment segment, Address address);                                              \
+  void type##Write32(type *mem, MemorySegment segment, Address address, uint32_t data);                                \
+  void type##Write16(type *mem, MemorySegment segment, Address address, uint16_t data);                                \
+  void type##Write8(type *mem, MemorySegment segment, Address address, uint8_t data);
+#define SIMPLE_BUS_DEVICE_DECLARE(type)                                                                                \
+  void type##New(System *sys, Bus *bus);                                                                               \
+  uint32_t type##Read32(void *_Nullable device, MemorySegment segment, Address address);                               \
+  uint16_t type##Read16(void *_Nullable device, MemorySegment segment, Address address);                               \
+  uint8_t type##Read8(void *_Nullable device, MemorySegment segment, Address address);                                 \
+  void type##Write32(void *_Nullable device, MemorySegment segment, Address address, uint32_t data);                   \
+  void type##Write16(void *_Nullable device, MemorySegment segment, Address address, uint16_t data);                   \
+  void type##Write8(void *_Nullable device, MemorySegment segment, Address address, uint8_t data);
 
-#define SIMPLE_BUS_DEVICE_DEFINITION(type, addrRange, ...)                     \
-  void type##New(System *sys, Bus *bus) {                                      \
-    BusDevice device = {.context = NULL,                                       \
-                        .read32 = type##Read32,                                \
-                        .read16 = type##Read16,                                \
-                        .read8 = type##Read8,                                  \
-                        .write32 = type##Write32,                              \
-                        .write16 = type##Write16,                              \
-                        .write8 = type##Write8};                               \
-    PCFResultOrPanic(BusRegisterDevice(bus, &device, addrRange));              \
-  }                                                                            \
-  uint32_t type##Read32(void *_Nullable device, MemorySegment segment,         \
-                        Address address) {                                     \
-    PCFWARN("Unhandled Read to " #type " at offset 0x%02x", address);          \
-    EXPAND(__VA_ARGS__)                                                        \
-  }                                                                            \
-  uint16_t type##Read16(void *_Nullable device, MemorySegment segment,         \
-                        Address address) {                                     \
-    return (uint16_t)type##Read32(device, segment, address);                   \
-  }                                                                            \
-  uint8_t type##Read8(void *_Nullable device, MemorySegment segment,           \
-                      Address address) {                                       \
-    return (uint8_t)type##Read32(device, segment, address);                    \
-  }                                                                            \
-  void type##Write32(void *_Nullable device, MemorySegment segment,            \
-                     Address address, uint32_t value) {                        \
-    PCFWARN("Unhandled Write to " #type                                        \
-            " at offset 0x%02x with value " ADDR_FORMAT,                       \
-            address, value);                                                   \
-  }                                                                            \
-  void type##Write16(void *_Nullable device, MemorySegment segment,            \
-                     Address address, uint16_t value) {                        \
-    type##Write32(device, segment, address, (uint32_t)value);                  \
-  }                                                                            \
-  void type##Write8(void *_Nullable device, MemorySegment segment,             \
-                    Address address, uint8_t value) {                          \
-    type##Write32(device, segment, address, (uint32_t)value);                  \
+#define SIMPLE_BUS_DEVICE_DEFINITION(type, addrRange, ...)                                                             \
+  void type##New(System *sys, Bus *bus) {                                                                              \
+    BusDevice device = {.context = NULL,                                                                               \
+                        .cpuCycles = 0,                                                                                \
+                        .read32 = type##Read32,                                                                        \
+                        .read16 = type##Read16,                                                                        \
+                        .read8 = type##Read8,                                                                          \
+                        .write32 = type##Write32,                                                                      \
+                        .write16 = type##Write16,                                                                      \
+                        .write8 = type##Write8};                                                                       \
+    PCFResultOrPanic(BusRegisterDevice(bus, &device, addrRange));                                                      \
+  }                                                                                                                    \
+  uint32_t type##Read32(void *_Nullable device, MemorySegment segment, Address address) {                              \
+    PCFWARN("Unhandled Read to " #type " at offset 0x%02x", address);                                                  \
+    EXPAND(__VA_ARGS__)                                                                                                \
+  }                                                                                                                    \
+  uint16_t type##Read16(void *_Nullable device, MemorySegment segment, Address address) {                              \
+    return (uint16_t)type##Read32(device, segment, address);                                                           \
+  }                                                                                                                    \
+  uint8_t type##Read8(void *_Nullable device, MemorySegment segment, Address address) {                                \
+    return (uint8_t)type##Read32(device, segment, address);                                                            \
+  }                                                                                                                    \
+  void type##Write32(void *_Nullable device, MemorySegment segment, Address address, uint32_t value) {                 \
+    PCFWARN("Unhandled Write to " #type " at offset 0x%02x with value " ADDR_FORMAT, address, value);                  \
+  }                                                                                                                    \
+  void type##Write16(void *_Nullable device, MemorySegment segment, Address address, uint16_t value) {                 \
+    type##Write32(device, segment, address, (uint32_t)value);                                                          \
+  }                                                                                                                    \
+  void type##Write8(void *_Nullable device, MemorySegment segment, Address address, uint8_t value) {                   \
+    type##Write32(device, segment, address, (uint32_t)value);                                                          \
   }
 
 typedef enum {
@@ -106,13 +92,9 @@ typedef uint8_t (*Read8)(void *_Nullable, MemorySegment, Address);
 typedef void (*Write32)(void *_Nullable, MemorySegment, Address, uint32_t);
 typedef void (*Write16)(void *_Nullable, MemorySegment, Address, uint16_t);
 typedef void (*Write8)(void *_Nullable, MemorySegment, Address, uint8_t);
+typedef void (*UpdateHandler)(void *, uint32_t);
 
-typedef enum {
-  Coprocessor0 = 0,
-  Coprocessor1,
-  Coprocessor2,
-  Coprocessor3
-} Coprocessor;
+typedef enum { Coprocessor0 = 0, Coprocessor1, Coprocessor2, Coprocessor3 } Coprocessor;
 
 typedef struct __SystemException {
   ExceptionCode code;
@@ -121,6 +103,7 @@ typedef struct __SystemException {
 
 typedef struct __BusDevice {
   void *_Nullable context;
+  uint32_t cpuCycles;
   Read32 read32;
   Read16 read16;
   Read8 read8;
@@ -137,6 +120,19 @@ typedef struct __AddressRange {
   Address end;
   MemorySegments segments;
 } AddressRange;
+
+struct __Clock;
+typedef struct __Clock Clock;
+typedef struct __ClockDeviceHandle {
+  Clock *clock;
+  size_t index;
+} ClockDeviceHandle;
+
+typedef struct __ClockDevice {
+  void *context;
+  double nanoSecsPerCycle;
+  UpdateHandler update;
+} ClockDevice;
 
 struct __Cpu;
 typedef struct __Cpu Cpu;
@@ -155,45 +151,50 @@ typedef struct __Gpu Gpu;
 
 typedef uint32_t GpuPacket;
 
+typedef struct __GpuScreen {
+  uint32_t width;
+  uint32_t height;
+  uint32_t *pixels;
+} GpuScreen;
+
 typedef union __GpuCommand {
   uint32_t value;
-  struct __attribute__((packed)) __GpuCommandDecomposed {
+  struct packed __GpuCommandDecomposed {
     uint32_t parameters : 24;
     uint32_t command : 8;
   } parsed;
 } GpuCommand;
+
+static inline GpuScreen NewGpuScreen(uint32_t width, uint32_t height, void *pixels) {
+  GpuScreen screen = {.width = width, .height = height, .pixels = (uint32_t *)pixels};
+  return screen;
+}
 
 static inline GpuCommand GpuPacketToCommand(GpuPacket packet) {
   GpuCommand command = {.value = packet};
   return command;
 }
 
-static inline SystemException NewSystemException(ExceptionCode code,
-                                                 Address address) {
+static inline SystemException NewSystemException(ExceptionCode code, Address address) {
   SystemException exception = {.code = code, .address = address};
   return exception;
 }
 
-static inline MemorySegment MemorySegmentForAddress(Address address) {
-  return kMemSegmentMap[address >> 29];
-}
+static inline MemorySegment MemorySegmentForAddress(Address address) { return kMemSegmentMap[address >> 29]; }
 
-static inline bool MemorySegmentsContain(MemorySegments segments,
-                                         MemorySegment segment) {
+static inline bool MemorySegmentsContain(MemorySegments segments, MemorySegment segment) {
   return (segments & segment) != 0;
 }
 
-static inline AddressRange NewAddressRange(Address start, Address end,
-                                           MemorySegments segments) {
-  AddressRange r = {
-      .start = PHYSICAL(start), .end = PHYSICAL(end), .segments = segments};
+static inline AddressRange NewAddressRange(Address start, Address end, MemorySegments segments) {
+  AddressRange r = {.start = PHYSICAL(start), .end = PHYSICAL(end), .segments = segments};
   return r;
 }
 
 static inline bool InRange(const AddressRange *range, Address addr) {
   ADDRESS_UNPACK(addr);
   if (MemorySegmentsContain(range->segments, addrSegment)) {
-    return addrPhysical >= range->start && addrPhysical < range->end;
+    return addrPhysical >= range->start && (addrPhysical < range->end || range->end == 0);
   }
   return false;
 }
@@ -206,5 +207,12 @@ static inline int32_t RangeCompare(AddressRange r1, AddressRange r2) {
   return 1;
 }
 
+static inline ClockDevice NewClockDevice(void *context, UpdateHandler updateHandler, uint32_t clockRate) {
+  ClockDevice result = {
+      .context = context, .nanoSecsPerCycle = 1000000000.0 / (double)clockRate, .update = updateHandler};
+  return result;
+}
+
 PCFStringRef MemorySegmentName(MemorySegment segment);
+
 ASSUME_NONNULL_END
