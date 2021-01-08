@@ -7,6 +7,7 @@ add_executable(psxemu
     src/psxemu.c 
     src/Memory.c 
     src/Devices.c 
+    src/Dma.c
     "src/Gpu.c" "src/Exceptions.c" "src/Interrupts.c" "src/Types.c" "src/Clock.c")
 
 # Define the libraries this project depends upon
@@ -23,8 +24,9 @@ add_executable(testPsxemu
     "src/Cpu/Cpu.c"
     src/System.c
     src/Memory.c 
-    src/Devices.c 
-    "src/Gpu.c" "src/Exceptions.c" "src/Interrupts.c" "src/Types.c" "src/Clock.c")
+    src/Devices.c
+    src/Dma.c
+    "src/Gpu.c" "src/Exceptions.c" "src/Interrupts.c" "src/Types.c" "src/Clock.c" "tests/CpuTests.cpp" "tests/TestSystem.hpp")
 
 target_compile_definitions(testPsxemu PRIVATE TESTING=1)
 target_link_libraries(testPsxemu

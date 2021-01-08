@@ -202,14 +202,20 @@ void ClockSyncToRealtime(Clock *clock) {
   double systemTime = clock->systemTime - clock->lastSync;
   double realTime = (SDL_GetPerformanceCounter() - clock->realLastSync) * clock->realTimePerTick;
   int32_t delayAmount = (systemTime - realTime) / 1000000.0;
-  if (delayAmount > 0.0) {
+  if (delayAmount > 0) {
     SDL_Delay(delayAmount);
   }
+  // Uncomment this to provide a rough indicator of the
+  // performance of the emulator. As long as delayAmount
+  // is positive, our emulator is fast enough to emulate the
+  // Playstation in realtime.
+  // printf("Delay = %d\n", delayAmount);
   clock->lastSync = clock->systemTime;
   clock->realLastSync = SDL_GetPerformanceCounter();
 }
 
 double ClockSystemTime(Clock *clock) { return clock->systemTime; }
+
 double ClockCyclesOfMasterClock(uint32_t cycles) { return cycles * kMasterClockTickFrequency; }
 
 ASSUME_NONNULL_END

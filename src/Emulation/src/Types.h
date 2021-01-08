@@ -50,18 +50,16 @@ extern const Address kPhysicalAddressMask;
                         .write8 = type##Write8};                                                                       \
     PCFResultOrPanic(BusRegisterDevice(bus, &device, addrRange));                                                      \
   }                                                                                                                    \
-  uint32_t type##Read32(void *_Nullable device, MemorySegment segment, Address address) {                              \
-    PCFWARN("Unhandled Read to " #type " at offset 0x%02x", address);                                                  \
-    EXPAND(__VA_ARGS__)                                                                                                \
-  }                                                                                                                    \
-  uint16_t type##Read16(void *_Nullable device, MemorySegment segment, Address address) {                              \
+  uint32_t type##Read32(void *_Nullable device, MemorySegment segment, Address address){                               \
+      /*PCFWARN("Unhandled Read to " #type " at offset 0x%02x", address);*/                                            \
+      EXPAND(__VA_ARGS__)} uint16_t type##Read16(void *_Nullable device, MemorySegment segment, Address address) {     \
     return (uint16_t)type##Read32(device, segment, address);                                                           \
   }                                                                                                                    \
   uint8_t type##Read8(void *_Nullable device, MemorySegment segment, Address address) {                                \
     return (uint8_t)type##Read32(device, segment, address);                                                            \
   }                                                                                                                    \
   void type##Write32(void *_Nullable device, MemorySegment segment, Address address, uint32_t value) {                 \
-    PCFWARN("Unhandled Write to " #type " at offset 0x%02x with value " ADDR_FORMAT, address, value);                  \
+    /*PCFWARN("Unhandled Write to " #type " at offset 0x%02x with value " ADDR_FORMAT, address, value);*/              \
   }                                                                                                                    \
   void type##Write16(void *_Nullable device, MemorySegment segment, Address address, uint16_t value) {                 \
     type##Write32(device, segment, address, (uint32_t)value);                                                          \
@@ -145,6 +143,12 @@ typedef struct __System System;
 
 struct __Memory;
 typedef struct __Memory Memory;
+
+struct __Dma;
+typedef struct __Dma Dma;
+
+struct __DmaChannelPort;
+typedef struct __DmaChannelPort DmaChannelPort;
 
 struct __Gpu;
 typedef struct __Gpu Gpu;

@@ -24,7 +24,7 @@ static inline BusDevice MemoryBusDevice(Memory *mem, uint32_t cpuCycles) {
   return device;
 }
 
-static Memory *MemoryNewInternal(System *sys, Bus *bus, size_t size, AddressRange range, uint32_t cycles) {
+Memory *MemoryNewCustom(System *sys, Bus *bus, size_t size, AddressRange range, uint32_t cycles) {
   Memory *mem = (Memory *)SystemArenaAllocate(sys, size);
   memset(mem->memory, 0xAA, size);
   BusDevice device = MemoryBusDevice(mem, cycles);
@@ -34,12 +34,12 @@ static Memory *MemoryNewInternal(System *sys, Bus *bus, size_t size, AddressRang
 
 Memory *MemoryNew(System *sys, Bus *bus) {
   AddressRange range = NewAddressRange(0x00000000, 0x00800000, kMainSegments);
-  return MemoryNewInternal(sys, bus, kMemorySize, range, 3);
+  return MemoryNewCustom(sys, bus, kMemorySize, range, 3);
 }
 
 Memory *DataCacheNew(System *sys, Bus *bus) {
   AddressRange range = NewAddressRange(0x1F800000, 0x1F800400, UserSegment | KernelSegment0);
-  return MemoryNewInternal(sys, bus, kDataCacheSize, range, 0);
+  return MemoryNewCustom(sys, bus, kDataCacheSize, range, 0);
 }
 
 uint32_t MemoryRead32(Memory *mem, MemorySegment segment, Address address) {

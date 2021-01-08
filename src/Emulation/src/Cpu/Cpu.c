@@ -23,10 +23,10 @@ static void Store32(Cpu *cpu, Address address, uint32_t value);
 static void Store16(Cpu *cpu, Address address, uint16_t value);
 static void Store8(Cpu *cpu, Address address, uint8_t value);
 static bool Load32(Cpu *cpu, Address address, uint32_t *result);
+static bool Load32WithoutCycleCount(Cpu *cpu, Address address, uint32_t *result);
 static bool Load16(Cpu *cpu, Address address, uint16_t *result);
 static bool Load8(Cpu *cpu, Address address, uint8_t *result);
 static bool LoadNextInstruction(Cpu *cpu, Instruction *result);
-static Address ExceptionHandler(Cpu *cpu, SystemException exception);
 static void Exception(Cpu *cpu, SystemException exception);
 static void CacheControlWrite32(Cpu *cpu, Address address, MemorySegment segment, uint32_t value);
 static void CacheControlWrite16(Cpu *cpu, Address address, MemorySegment segment, uint16_t value);
@@ -44,6 +44,7 @@ static void CpuLink(Cpu *cpu, uint8_t linkReg);
 Cpu *CpuNew(System *sys, Bus *bus, Clock *clock) {
   Cpu *cpu = (Cpu *)SystemArenaAllocate(sys, sizeof(Cpu));
   cpu->bus = bus;
+  cpu->sys = sys;
   int i;
   for (i = 1; i < 32; i++) {
     cpu->reg[i] = 0xDEADBEEF;
@@ -60,6 +61,8 @@ Cpu *CpuNew(System *sys, Bus *bus, Clock *clock) {
   cpu->cop0.cause.value = 0;
   cpu->cop0.epc = 0;
   cpu->cop0.sr.value = 0;
+  cpu->cop0.sr.parsed.bootExceptionVectors = 1;
+  cpu->cop0.sr.parsed.tlbShutdown = 1;
 
   return cpu;
 }
@@ -80,15 +83,22 @@ void CpuRun(Cpu *cpu, uint32_t cycles) {
 
   uint32_t numCycles = 0;
   while (cycles > numCycles) {
-    RunNextInstruction(cpu);
-    ClockTick(cpu->clock, cpu->cycles);
-    numCycles += cpu->cycles;
-    cpu->cycles = 0;
+    if (SystemIsDmaActive(cpu->sys)) {
+      numCycles += SystemDmaRun(cpu->sys);
+    } else {
+      RunNextInstruction(cpu);
+      ClockTick(cpu->clock, cpu->cycles);
+      numCycles += cpu->cycles;
+      cpu->cycles = 0;
+    }
   }
 }
 
 static void RunNextInstruction(Cpu *cpu) {
   cpu->currentPc = cpu->pc;
+  if (cpu->currentPc == 0x800415d4) {
+    // SystemBreakpoint(cpu->sys);
+  }
   Instruction instruction;
   if (!LoadNextInstruction(cpu, &instruction)) {
     return;
@@ -103,7 +113,23 @@ static void RunNextInstruction(Cpu *cpu) {
   cpu->reg[0] = 0;
 }
 
-static void Exception(Cpu *cpu, SystemException exception) { PCF_PANIC("System Exceptions are not implemented yet!"); }
+static void Exception(Cpu *cpu, SystemException exception) {
+  cpu->pc = cpu->cop0.sr.parsed.bootExceptionVectors ? kGeneralExceptionVectorBoot : kGeneralExceptionVector;
+  if (cpu->delaySlot) {
+    cpu->cop0.epc = cpu->currentPc - 4;
+    cpu->cop0.cause.parsed.branch = 1;
+  } else {
+    cpu->cop0.epc = cpu->currentPc;
+    cpu->cop0.cause.parsed.branch = 0;
+  }
+  cpu->cop0.cause.parsed.exceptionCode = exception.code;
+  cpu->cop0.sr.parsed.oldInteruptEnable = cpu->cop0.sr.parsed.prevInteruptEnable;
+  cpu->cop0.sr.parsed.oldUserMode = cpu->cop0.sr.parsed.prevUserMode;
+  cpu->cop0.sr.parsed.prevInteruptEnable = cpu->cop0.sr.parsed.currentInteruptEnable;
+  cpu->cop0.sr.parsed.prevUserMode = cpu->cop0.sr.parsed.currentUserMode;
+  cpu->cop0.sr.parsed.currentInteruptEnable = 0;
+  cpu->cop0.sr.parsed.currentUserMode = 0;
+}
 
 static bool LoadNextInstruction(Cpu *cpu, Instruction *result) {
   Address address = cpu->pc;
@@ -111,8 +137,33 @@ static bool LoadNextInstruction(Cpu *cpu, Instruction *result) {
   if ((segment == UserSegment || segment == KernelSegment0) && cpu->cacheControlReg.parsed.codeCacheEnabled) {
     // Load From Code Cache
     size_t lineNumber = (address >> 4) & 0xFF;
+    Address tag = (address & 0x7FFFF000) >> 12;
     CacheLine *line = &cpu->iCache[lineNumber];
-    // TODO: Finish code cache implementation
+    size_t index = (address & 0x000000F) >> 2;
+    if (!line->tagValid.parsed.isInvalid && line->tagValid.parsed.tag == tag &&
+        line->tagValid.parsed.validIndex <= index) {
+      *result = line->entries[index];
+      return true;
+    } else {
+      line->tagValid.parsed.tag = tag;
+      line->tagValid.parsed.isInvalid = false;
+      line->tagValid.parsed.validIndex = index;
+      uint32_t loadResult;
+      if (Load32(cpu, address, &loadResult)) {
+        *result = NewInstruction(loadResult);
+        line->entries[index] = NewInstruction(loadResult);
+      }
+      Address addressBlock = address & 0xFFFFFFF0;
+      int i;
+      for (i = index + 1; i < 4; i++) {
+        if (!Load32WithoutCycleCount(cpu, addressBlock + (i << 2), &loadResult)) {
+          return false;
+        }
+        line->entries[i] = NewInstruction(loadResult);
+        cpu->cycles++;
+      }
+      return true;
+    }
   }
   uint32_t loadResult;
   if (Load32(cpu, address, &loadResult)) {
@@ -645,8 +696,8 @@ static void Mtlo(Cpu *cpu, Instruction instruction) {
 }
 
 static void Mult(Cpu *cpu, Instruction instruction) {
-  int64_t rs = cpu->reg[instruction.reg.rs];
-  int64_t rt = cpu->reg[instruction.reg.rt];
+  int64_t rs = (int32_t)cpu->reg[instruction.reg.rs];
+  int64_t rt = (int32_t)cpu->reg[instruction.reg.rt];
   CpuDelayedLoad(cpu);
   cpu->hilo.combined = rs * rt;
 }
@@ -659,8 +710,8 @@ static void Multu(Cpu *cpu, Instruction instruction) {
 }
 
 static void Div(Cpu *cpu, Instruction instruction) {
-  int64_t rs = cpu->reg[instruction.reg.rs];
-  int64_t rt = cpu->reg[instruction.reg.rt];
+  int64_t rs = (int32_t)cpu->reg[instruction.reg.rs];
+  int64_t rt = (int32_t)cpu->reg[instruction.reg.rt];
   CpuDelayedLoad(cpu);
   if (rt == 0) {
     cpu->hilo.distinct.hi = rs;
@@ -684,11 +735,7 @@ static void Divu(Cpu *cpu, Instruction instruction) {
   CpuDelayedLoad(cpu);
   if (rt == 0) {
     cpu->hilo.distinct.hi = rs;
-    if (rs >= 0) {
-      cpu->hilo.distinct.lo = 0xFFFFFFFF;
-    } else {
-      cpu->hilo.distinct.lo = 1;
-    }
+    cpu->hilo.distinct.lo = 0xFFFFFFFF;
   } else {
     cpu->hilo.distinct.lo = rs / rt;
     cpu->hilo.distinct.hi = rs % rt;
@@ -819,7 +866,13 @@ static void Bgezal(Cpu *cpu, Instruction instruction) {
   }
 }
 
-static void Rfe(Cpu *cpu, Instruction instruction) { CpuDelayedLoad(cpu); }
+static void Rfe(Cpu *cpu, Instruction instruction) {
+  cpu->cop0.sr.parsed.prevInteruptEnable = cpu->cop0.sr.parsed.oldInteruptEnable;
+  cpu->cop0.sr.parsed.prevUserMode = cpu->cop0.sr.parsed.oldUserMode;
+  cpu->cop0.sr.parsed.currentInteruptEnable = cpu->cop0.sr.parsed.prevInteruptEnable;
+  cpu->cop0.sr.parsed.currentUserMode = cpu->cop0.sr.parsed.prevUserMode;
+  CpuDelayedLoad(cpu);
+}
 
 static void CpuDelayedLoad(Cpu *cpu) {
   cpu->reg[cpu->loadReg] = cpu->loadValue;
@@ -863,6 +916,9 @@ static void Store16(Cpu *cpu, Address address, uint16_t value) {
     PCF_PANIC("Unsupported Store16 while Cache is Isolated! Address = " ADDR_FORMAT ", value = 0x%04x", address, value);
     return;
   }
+  if (address == 0x80138c9E && value == 0x5baa) {
+    SystemBreakpoint(cpu->sys);
+  }
   SystemException exception;
   uint32_t cycles;
   if (!BusWrite16(cpu->bus, address, value, &exception, &cycles)) {
@@ -893,6 +949,17 @@ static bool Load32(Cpu *cpu, Address address, uint32_t *result) {
     return false;
   }
   cpu->cycles += cycles;
+  return true;
+}
+
+static bool Load32WithoutCycleCount(Cpu *cpu, Address address, uint32_t *result) {
+  SystemException exception;
+  uint32_t cycles;
+  BusRead32(cpu->bus, address, result, &exception, &cycles);
+  if (!BusRead32(cpu->bus, address, result, &exception, &cycles)) {
+    Exception(cpu, exception);
+    return false;
+  }
   return true;
 }
 
@@ -954,10 +1021,34 @@ static void CacheMaintenance(Cpu *cpu, Address address, uint32_t value) {
   size_t lineNumber = (address >> 4) & 0xFF;
   CacheLine *line = &cpu->iCache[lineNumber];
   if (cpu->cacheControlReg.parsed.tagTestMode) {
-    line->tagValid.parsed.isValid = false;
+    line->tagValid.parsed.isInvalid = true;
   } else {
     size_t index = (address >> 2) & 0x03;
     line->entries[index] = NewInstruction(value);
+  }
+}
+
+void CpuPrintRegs(Cpu *cpu) {
+  printf("$PC = 0x%08x\n", cpu->currentPc);
+  int i = 0;
+  for (i = 0; i < 32; i += 2) {
+    printf("$%d = 0x%08x \t$%d = 0x%08x\n", i, cpu->reg[i], i + 1, cpu->reg[i + 1]);
+  }
+  printf("$HI = 0x%08x\t$LO = 0x%08x\n", cpu->hilo.distinct.hi, cpu->hilo.distinct.lo);
+}
+
+void CpuPrintStack(Cpu *cpu) {
+  uint32_t stackTop = cpu->reg[29];
+  int i = 0;
+  for (i = 0; i < 200; i += 4) {
+    uint32_t cycles;
+    SystemException exception;
+    uint32_t result;
+    if (BusRead32(cpu->bus, stackTop + i, &result, &exception, &cycles)) {
+      printf("($29 + %d) 0x%08x: 0x%08x\n", i, stackTop + i, result);
+    } else {
+      printf("($29 + %d) 0x%08x: Exception %d\n", i, stackTop + i, exception.code);
+    }
   }
 }
 

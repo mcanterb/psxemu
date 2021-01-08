@@ -13,7 +13,8 @@ ASSUME_NONNULL_BEGIN
            : SIGN_EXTEND_16(val))
 
 static const Address kResetVector = 0xBFC00000;
-static const Address kGeneralExceptionVector = 0x00000080;
+static const Address kGeneralExceptionVector = 0x80000080;
+static const Address kGeneralExceptionVectorBoot = 0xBFC00180;
 static const uint32_t kProcessorId = 0x00000002;
 
 typedef struct packed __ImmediateInstruction {
@@ -88,7 +89,7 @@ typedef struct __CacheLine {
     struct packed __CacheLineTagValid {
       uint32_t unused0_1 : 2;
       uint32_t validIndex : 2;
-      uint32_t isValid : 1;
+      uint32_t isInvalid : 1;
       uint32_t unused5_12 : 8;
       uint32_t tag : 19;
 
@@ -143,6 +144,7 @@ typedef struct packed __CpuCop0 {
 
 struct __Cpu {
   Bus *bus;
+  System *sys;
   uint32_t reg[32];
   uint8_t loadReg : 5;
   uint32_t loadValue;

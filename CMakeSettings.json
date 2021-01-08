@@ -44,7 +44,7 @@
       "variables": [
         {
           "name": "CMAKE_C_FLAGS",
-          "value": "-m64 -fdiagnostics-absolute-paths  /DWIN32 /D_WINDOWS /W3 /D__AVX__ /D__AVX2__ -march=skylake",
+          "value": "-m64 -fdiagnostics-absolute-paths  /DWIN32 /D_WINDOWS /W3 /D__AVX__ /D__AVX2__ -march=skylake /O2 ",
           "type": "STRING"
         }
       ]

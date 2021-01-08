@@ -13,6 +13,11 @@ void SystemRun(System *sys);
 void SystemUpdateSurface(System *sys, SDL_Surface *surface);
 void SystemSync(System *sys);
 Clock *SystemClock(System *sys);
+Memory *SystemMemory(System *sys);
+Dma *SystemDma(System *sys);
+bool SystemIsDmaActive(System *sys);
+uint32_t SystemDmaRun(System *sys);
+void SystemBreakpoint(System *sys);
 
 void *SystemArenaAllocate(System *sys, size_t size);
 

@@ -14,7 +14,7 @@ struct __Bios {
 
 static inline BusDevice BiosBusDevice(Bios *bios) {
   BusDevice device = {.context = bios,
-                      .cpuCycles = 12,
+                      .cpuCycles = 6,
                       .read32 = (Read32)BiosRead32,
                       .read16 = (Read16)BiosRead16,
                       .read8 = (Read8)BiosRead8,

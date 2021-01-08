@@ -4,7 +4,7 @@
 
 ASSUME_NONNULL_BEGIN
 
-SIMPLE_BUS_DEVICE_DEFINITION(Expansion1, NewAddressRange(0x1F000000, 0x1F080000, kMainSegments), { return 0x00000000; })
+SIMPLE_BUS_DEVICE_DEFINITION(Expansion1, NewAddressRange(0x1F000000, 0x1F080000, kMainSegments), { return 0xFFFFFFFF; })
 SIMPLE_BUS_DEVICE_DEFINITION(Expansion2, NewAddressRange(0x1F802000, 0x1F802080, kMainSegments), { return 0x00000000; })
 SIMPLE_BUS_DEVICE_DEFINITION(MemoryControl1, NewAddressRange(0x1F801000, 0x1F801024, kMainSegments),
                              { return 0x00000000; })
@@ -14,7 +14,6 @@ SIMPLE_BUS_DEVICE_DEFINITION(MemoryControl2, NewAddressRange(0x1F801060, 0x1F801
                              { return 0x00000B88; })
 SIMPLE_BUS_DEVICE_DEFINITION(InterruptControl, NewAddressRange(0x1F801070, 0x1F801078, kMainSegments),
                              { return 0x00000000; })
-SIMPLE_BUS_DEVICE_DEFINITION(Dma, NewAddressRange(0x1F801080, 0x1F801100, kMainSegments), { return 0x00000000; })
 SIMPLE_BUS_DEVICE_DEFINITION(Timers, NewAddressRange(0x1F801100, 0x1F801130, kMainSegments), { return 0x00000000; })
 SIMPLE_BUS_DEVICE_DEFINITION(Cdrom, NewAddressRange(0x1F801800, 0x1F801804, kMainSegments), { return 0x00000000; })
 SIMPLE_BUS_DEVICE_DEFINITION(Mdec, NewAddressRange(0x1F801820, 0x1F801828, kMainSegments), { return 0x00000000; })
